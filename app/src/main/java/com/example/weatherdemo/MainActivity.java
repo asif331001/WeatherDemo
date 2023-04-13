@@ -50,11 +50,14 @@ public class MainActivity extends AppCompatActivity {
 
     private RelativeLayout homeRL;
     private ProgressBar loadingPB;
-    private TextView cityNameTV, temperatureTV, conditionTV, forecastTV;
-    private RecyclerView weatherRV;
+    private TextView cityNameTV, temperatureTV, conditionTV, forecastTV, upComingDayTV;
+    private RecyclerView weatherRV, upComingDayRV;
     private TextInputEditText cityEdt;
     private ImageView backIV, iconIV, searchIV;
     private ArrayList<WeatherRVModel> weatherRVModelArrayList;
+    private ArrayList<DayRVModel>  dayRVModelArrayList;
+    private DayRVAdapter dayRVAdapter;
+
     private WeatherRVAdapter weatherRVAdapter;
     private LocationManager locationManager;
     private int PERMISSION_CODE = 1;
@@ -72,16 +75,26 @@ public class MainActivity extends AppCompatActivity {
         loadingPB = findViewById(R.id.idPBLoading);
         cityNameTV = findViewById(R.id.idTVCityName);
         forecastTV = findViewById(R.id.idForecastTV);
+        upComingDayTV = findViewById(R.id.idUpComingDayTV);
         temperatureTV = findViewById(R.id.idTVTemperature);
         conditionTV = findViewById(R.id.idTVCondition);
         weatherRV = findViewById(R.id.idRVWeather);
+        upComingDayRV = findViewById(R.id.idRVUpComingDay);
         cityEdt = findViewById(R.id.idEdtCity);
         backIV = findViewById(R.id.idIVBack);
         iconIV = findViewById(R.id.idIVIcon);
         searchIV = findViewById(R.id.idIVSearch);
+
+        dayRVModelArrayList= new ArrayList<>();
+        dayRVAdapter = new DayRVAdapter(MainActivity.this, dayRVModelArrayList );
+        upComingDayRV.setAdapter(dayRVAdapter);
+
+
         weatherRVModelArrayList = new ArrayList<>();
-        weatherRVAdapter = new WeatherRVAdapter(this, weatherRVModelArrayList);
+        weatherRVAdapter = new WeatherRVAdapter(MainActivity.this, weatherRVModelArrayList);
         weatherRV.setAdapter(weatherRVAdapter);
+
+
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -154,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void getWeatherInfo(String cityName){
-        String url = "http://api.weatherapi.com/v1/forecast.json?key=b77be0bfa19e48c9a9761520231104&q="+cityName+"&days=1&aqi=no&alerts=no";
+        String url = "http://api.weatherapi.com/v1/forecast.json?key=b77be0bfa19e48c9a9761520231104&q="+cityName+"&days=7&aqi=no&alerts=no";
         cityNameTV.setText(cityName);
         RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
 
@@ -163,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(JSONObject response) {
                 loadingPB.setVisibility(View.GONE);
                 homeRL.setVisibility(View.VISIBLE);
-                weatherRVModelArrayList.clear();
+
 
                 try {
                     String temperature = response.getJSONObject("current").getString("temp_c");
@@ -194,21 +207,36 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this,"backIV Null", Toast.LENGTH_SHORT).show();
                     }
 
-                    JSONObject forecastObj = response.getJSONObject("forecast");
-                    JSONObject forecastO = forecastObj.getJSONArray("forecastday").getJSONObject(0);
-                    JSONArray hourArray = forecastO.getJSONArray("hour");
 
-                    for (int i = 0; i<hourArray.length(); i++){
+
+                    JSONArray forecastArray = response.getJSONObject("forecast").getJSONArray("forecastday");
+
+                    // Populate the weatherRV list with hourly weather data
+                    JSONArray hourArray = forecastArray.getJSONObject(0).getJSONArray("hour");
+                    for (int i = 0; i < hourArray.length(); i++) {
                         JSONObject hourObj = hourArray.getJSONObject(i);
                         String time = hourObj.getString("time");
                         String temper = hourObj.getString("temp_c");
-                        String img = hourObj.getJSONObject("condition").getString("icon");
+                        String img = "http:" + hourObj.getJSONObject("condition").getString("icon");
                         String txt = hourObj.getJSONObject("condition").getString("text");
                         String wind = hourObj.getString("wind_kph");
                         weatherRVModelArrayList.add(new WeatherRVModel(time, temper, img, txt, wind));
                     }
                     weatherRVAdapter.notifyDataSetChanged();
 
+
+                    // Clear the previous dayRVModelArrayList data
+                    dayRVModelArrayList.clear();
+
+                    // Populate the dayRV list with daily weather data for the next 7 days
+                    for (int j = 0; j < 7; j++) { // Loop for 7 days
+                        JSONObject forecastObj = forecastArray.getJSONObject(j);
+                        String date = forecastObj.getString("date");
+                        String avgtemp = forecastObj.getJSONObject("day").getString("avgtemp_c");
+                        String maxwind = forecastObj.getJSONObject("day").getString("maxwind_kph");
+                        String text = forecastObj.getJSONObject("day").getJSONObject("condition").getString("text");
+                        dayRVModelArrayList.add(new DayRVModel(date, avgtemp, maxwind, text));
+                    }
                 } catch (JSONException e){
                     e.printStackTrace();
                 }
