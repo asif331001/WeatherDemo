@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
             getWeatherInfo(cityName);
         } else {
             // Handle the case where the location is null
-            Toast.makeText(MainActivity.this, "Location not available", Toast.LENGTH_SHORT).show();
+
             homeRL.setVisibility(View.VISIBLE);
         }
 
